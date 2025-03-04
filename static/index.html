@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DnD Tabletop</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #map {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .figure {
+      position: absolute;
+      border: 2px solid #000;
+      background-color: rgba(255,255,255,0.8);
+      text-align: center;
+      cursor: move;
+      user-select: none;
+    }
+    /* Simple UI styling */
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="ui">
+    <div>
+      <input type="file" id="mapUpload">
+      <button id="uploadMapBtn">Upload Map</button>
+    </div>
+    <div style="margin-top:10px;">
+      <input type="text" id="figureName" placeholder="Figure Name">
+      <input type="number" id="figureWidth" placeholder="Width" style="width:70px;">
+      <input type="number" id="figureHeight" placeholder="Height" style="width:70px;">
+      <button id="addFigureBtn">Add Figure</button>
+    </div>
+  </div>
+  <script src="/static/client.js"></script>
+</body>
+</html>
