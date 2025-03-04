@@ -3,6 +3,13 @@ let ws = new WebSocket("ws://" + location.host + "/ws");
 let mapDiv = document.getElementById("map");
 let figures = {};  // Gespeicherte Figur-Daten
 let currentZoom = 1;
+let panX = 0;
+let panY = 0;
+
+// Funktion, die den aktuellen Transform (Zoom + Pan) auf die Map anwendet.
+function updateTransform() {
+  mapDiv.style.transform = "translate(" + panX + "px, " + panY + "px) scale(" + currentZoom + ")";
+}
 
 // Laden vorhandener Maps und Dropdown befüllen.
 function loadMaps() {
@@ -28,7 +35,7 @@ loadMaps();
 let zoomSlider = document.getElementById("zoomSlider");
 zoomSlider.addEventListener("input", function() {
   currentZoom = parseFloat(zoomSlider.value);
-  mapDiv.style.transform = "scale(" + currentZoom + ")";
+  updateTransform();
 });
 
 // Auswahl einer vorhandenen Map.
@@ -38,6 +45,27 @@ document.getElementById("selectMapBtn").onclick = function() {
   let msg = { type: "set_map", data: { map: selectedMap } };
   ws.send(JSON.stringify(msg));
 };
+
+// Panning der Map (nur aktiv, wenn auf den Hintergrund geklickt wird)
+mapDiv.addEventListener("mousedown", function(e) {
+  // Falls nicht direkt auf die Map (also z.B. auf eine Figur) geklickt wurde, beenden.
+  if (e.target !== mapDiv) return;
+  let startX = e.clientX;
+  let startY = e.clientY;
+  let origPanX = panX;
+  let origPanY = panY;
+  function onMouseMove(e) {
+    panX = origPanX + (e.clientX - startX);
+    panY = origPanY + (e.clientY - startY);
+    updateTransform();
+  }
+  function onMouseUp(e) {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  }
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+});
 
 // WebSocket-Nachrichten verarbeiten.
 ws.onmessage = function(event) {
@@ -66,8 +94,11 @@ function addFigureToMap(fig) {
   div.style.borderColor = fig.color;
   div.innerHTML = fig.name;
   div.setAttribute("data-id", fig.id);
-  // Drag-Funktionalität.
-  div.onmousedown = startDrag;
+  // Damit beim Klicken auf eine Figur nicht gleichzeitig das Panning der Map startet:
+  div.addEventListener("mousedown", function(e) {
+    e.stopPropagation();
+    startDrag(e);
+  });
   // Rechtsklick zum Entfernen.
   div.oncontextmenu = function(e) {
     e.preventDefault();
@@ -78,16 +109,22 @@ function addFigureToMap(fig) {
 
 function startDrag(e) {
   let el = e.target;
-  let startX = e.clientX;
-  let startY = e.clientY;
-  let origX = parseInt(el.style.left);
-  let origY = parseInt(el.style.top);
+  let mapRect = mapDiv.getBoundingClientRect();
+  // Ermittle den "logischen" Startwert der Mausposition in Container-Koordinaten:
+  let pointerLogicalX = (e.clientX - mapRect.left - panX) / currentZoom;
+  let pointerLogicalY = (e.clientY - mapRect.top - panY) / currentZoom;
+  let origLeft = parseFloat(el.style.left);
+  let origTop = parseFloat(el.style.top);
+  let offsetX = pointerLogicalX - origLeft;
+  let offsetY = pointerLogicalY - origTop;
+
   function onMouseMove(e) {
-    // Korrigiere die Mausbewegung mit dem aktuellen Zoomfaktor.
-    let newX = origX + ((e.clientX - startX) / currentZoom);
-    let newY = origY + ((e.clientY - startY) / currentZoom);
-    el.style.left = newX + "px";
-    el.style.top = newY + "px";
+    let pointerLogicalX = (e.clientX - mapRect.left - panX) / currentZoom;
+    let pointerLogicalY = (e.clientY - mapRect.top - panY) / currentZoom;
+    let newLeft = pointerLogicalX - offsetX;
+    let newTop = pointerLogicalY - offsetY;
+    el.style.left = newLeft + "px";
+    el.style.top = newTop + "px";
   }
   function onMouseUp(e) {
     document.removeEventListener("mousemove", onMouseMove);
