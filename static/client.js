@@ -1,25 +1,24 @@
-// Open a WebSocket connection.
+// Öffne die WebSocket-Verbindung.
 let ws = new WebSocket("ws://" + location.host + "/ws");
 let mapDiv = document.getElementById("map");
-let figures = {};
+let figures = {};  // Gespeicherte Figur-Daten
 
-// Listen for state updates.
 ws.onmessage = function(event) {
   let msg = JSON.parse(event.data);
-  if(msg.type === "state_update") {
-    // Update map background.
+  if (msg.type === "state_update") {
+    // Map aktualisieren.
     mapDiv.style.backgroundImage = `url(${msg.currentMap})`;
-    // Clear existing figures and re-add them.
+    // Figuren aktualisieren.
     mapDiv.querySelectorAll(".figure").forEach(el => el.remove());
     figures = {};
     msg.figures.forEach(fig => {
       addFigureToMap(fig);
       figures[fig.id] = fig;
     });
+    updateProfileView();
   }
 };
 
-// Add a figure element to the map.
 function addFigureToMap(fig) {
   let div = document.createElement("div");
   div.className = "figure";
@@ -27,11 +26,12 @@ function addFigureToMap(fig) {
   div.style.height = fig.height + "px";
   div.style.left = fig.x + "px";
   div.style.top = fig.y + "px";
+  div.style.borderColor = fig.color;
   div.innerHTML = fig.name;
   div.setAttribute("data-id", fig.id);
-  // Enable dragging.
+  // Drag-Funktionalität.
   div.onmousedown = startDrag;
-  // Right-click to remove.
+  // Rechtsklick zum Entfernen.
   div.oncontextmenu = function(e) {
     e.preventDefault();
     removeFigure(fig.id);
@@ -39,7 +39,6 @@ function addFigureToMap(fig) {
   mapDiv.appendChild(div);
 }
 
-// Drag functionality.
 function startDrag(e) {
   let el = e.target;
   let startX = e.clientX;
@@ -55,7 +54,6 @@ function startDrag(e) {
   function onMouseUp(e) {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
-    // Send the move update.
     let id = el.getAttribute("data-id");
     let msg = {
       type: "move_figure",
@@ -67,7 +65,6 @@ function startDrag(e) {
   document.addEventListener("mouseup", onMouseUp);
 }
 
-// Remove a figure by sending a message.
 function removeFigure(id) {
   let msg = {
     type: "remove_figure",
@@ -76,28 +73,30 @@ function removeFigure(id) {
   ws.send(JSON.stringify(msg));
 }
 
-// Add figure UI.
+// Beim Hinzufügen einer Figur auch Farbe und Lives mitgeben.
 document.getElementById("addFigureBtn").onclick = function() {
   let name = document.getElementById("figureName").value || "Figure";
   let width = parseInt(document.getElementById("figureWidth").value) || 50;
   let height = parseInt(document.getElementById("figureHeight").value) || 50;
-  // Default position (could be improved to center it on the map).
+  let color = document.getElementById("figureColor").value || "#000000";
+  // Standardposition.
   let fig = {
-    id: "", // Server will assign an ID.
+    id: "",
     name: name,
     x: 100,
     y: 100,
     width: width,
-    height: height
+    height: height,
+    color: color,
+    lives: 3
   };
   let msg = { type: "add_figure", data: fig };
   ws.send(JSON.stringify(msg));
 };
 
-// Map upload UI.
 document.getElementById("uploadMapBtn").onclick = function() {
   let fileInput = document.getElementById("mapUpload");
-  if(fileInput.files.length === 0) {
+  if (fileInput.files.length === 0) {
     return alert("Select a file first.");
   }
   let file = fileInput.files[0];
@@ -108,3 +107,31 @@ document.getElementById("uploadMapBtn").onclick = function() {
     .then(data => console.log(data))
     .catch(err => console.error(err));
 };
+
+// Aktualisiert die Profil-Ansicht basierend auf den Figuren.
+function updateProfileView() {
+  let profileList = document.getElementById("profileList");
+  profileList.innerHTML = "";
+  Object.values(figures).forEach(fig => {
+    let container = document.createElement("div");
+    container.className = "profile";
+    container.style.borderColor = fig.color;
+    // Name anzeigen.
+    let nameEl = document.createElement("div");
+    nameEl.textContent = fig.name;
+    container.appendChild(nameEl);
+    // Lives als Input-Feld.
+    let livesInput = document.createElement("input");
+    livesInput.type = "number";
+    livesInput.value = fig.lives;
+    livesInput.addEventListener("change", function() {
+      let msg = {
+        type: "update_lives",
+        data: { id: fig.id, lives: parseInt(livesInput.value) }
+      };
+      ws.send(JSON.stringify(msg));
+    });
+    container.appendChild(livesInput);
+    profileList.appendChild(container);
+  });
+}

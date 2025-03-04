@@ -6,9 +6,11 @@
   <style>
     body { margin: 0; overflow: hidden; }
     #map {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 260px; /* Platz für die Profil-Ansicht */
+      bottom: 0;
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
@@ -21,7 +23,6 @@
       cursor: move;
       user-select: none;
     }
-    /* Simple UI styling */
     #ui {
       position: absolute;
       top: 10px;
@@ -30,6 +31,28 @@
       background: rgba(255,255,255,0.9);
       padding: 10px;
       border: 1px solid #ccc;
+    }
+    /* Profil-Ansicht (scrollbar) */
+    #profileView {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 250px;
+      height: 100vh;
+      background: #f9f9f9;
+      overflow-y: auto;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .profile {
+      border: 2px solid;
+      padding: 5px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    .profile input {
+      width: 100%;
     }
   </style>
 </head>
@@ -44,8 +67,13 @@
       <input type="text" id="figureName" placeholder="Figure Name">
       <input type="number" id="figureWidth" placeholder="Width" style="width:70px;">
       <input type="number" id="figureHeight" placeholder="Height" style="width:70px;">
+      <input type="color" id="figureColor" value="#ff0000">
       <button id="addFigureBtn">Add Figure</button>
     </div>
+  </div>
+  <div id="profileView">
+    <h3>Figuren Profile</h3>
+    <div id="profileList"></div>
   </div>
   <script src="/static/client.js"></script>
 </body>
