@@ -42,7 +42,7 @@ var (
 	hub        = newHub()
 )
 
-// mapToSlice konvertiert unsere Figur-Karte in einen Slice.
+// mapToSlice konvertiert unsere Figuren-Karte in einen Slice.
 func mapToSlice(m map[string]Figure) []Figure {
 	out := []Figure{}
 	for _, f := range m {
@@ -277,9 +277,8 @@ func (c *Client) writePump() {
 	}
 }
 
-// --- HTTP Handler ---
+// --- HTTP Handler für Map-Uploads ---
 
-// uploadMapHandler verarbeitet POST-Anfragen mit einem neuen Map-Bild.
 func uploadMapHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Error parsing form", http.StatusBadRequest)
@@ -309,14 +308,39 @@ func uploadMapHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Map uploaded successfully"))
 }
 
+// --- HTTP Handler zum Listen vorhandener Maps ---
+func listMapsHandler(w http.ResponseWriter, r *http.Request) {
+	// Lese Dateien aus uploads.
+	files, err := os.ReadDir("uploads")
+	if err != nil {
+		http.Error(w, "Error reading uploads", http.StatusInternalServerError)
+		return
+	}
+	maps := []string{"/static/default_map.jpg"} // Standardmap mit aufnehmen
+	for _, file := range files {
+		if !file.IsDir() {
+			maps = append(maps, "/uploads/"+file.Name())
+		}
+	}
+	data, err := json.Marshal(maps)
+	if err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
 func main() {
 	go hub.run()
 
 	// Statische Dateien und Uploads bereitstellen.
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
+	// Neue Endpunkte.
 	http.HandleFunc("/ws", serveWs)
 	http.HandleFunc("/upload", uploadMapHandler)
+	http.HandleFunc("/maps", listMapsHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
 	})

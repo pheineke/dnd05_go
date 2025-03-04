@@ -2,7 +2,44 @@
 let ws = new WebSocket("ws://" + location.host + "/ws");
 let mapDiv = document.getElementById("map");
 let figures = {};  // Gespeicherte Figur-Daten
+let currentZoom = 1;
 
+// Laden vorhandener Maps und Dropdown befüllen.
+function loadMaps() {
+  fetch("/maps")
+    .then(response => response.json())
+    .then(maps => {
+      let mapSelect = document.getElementById("mapSelect");
+      mapSelect.innerHTML = "";
+      maps.forEach(mapUrl => {
+        let option = document.createElement("option");
+        option.value = mapUrl;
+        option.textContent = mapUrl;
+        mapSelect.appendChild(option);
+      });
+    })
+    .catch(err => console.error(err));
+}
+
+// Initiale Laden der Map-Liste.
+loadMaps();
+
+// Zoom-Slider
+let zoomSlider = document.getElementById("zoomSlider");
+zoomSlider.addEventListener("input", function() {
+  currentZoom = parseFloat(zoomSlider.value);
+  mapDiv.style.transform = "scale(" + currentZoom + ")";
+});
+
+// Auswahl einer vorhandenen Map.
+document.getElementById("selectMapBtn").onclick = function() {
+  let mapSelect = document.getElementById("mapSelect");
+  let selectedMap = mapSelect.value;
+  let msg = { type: "set_map", data: { map: selectedMap } };
+  ws.send(JSON.stringify(msg));
+};
+
+// WebSocket-Nachrichten verarbeiten.
 ws.onmessage = function(event) {
   let msg = JSON.parse(event.data);
   if (msg.type === "state_update") {
@@ -46,8 +83,9 @@ function startDrag(e) {
   let origX = parseInt(el.style.left);
   let origY = parseInt(el.style.top);
   function onMouseMove(e) {
-    let newX = origX + (e.clientX - startX);
-    let newY = origY + (e.clientY - startY);
+    // Korrigiere die Mausbewegung mit dem aktuellen Zoomfaktor.
+    let newX = origX + ((e.clientX - startX) / currentZoom);
+    let newY = origY + ((e.clientY - startY) / currentZoom);
     el.style.left = newX + "px";
     el.style.top = newY + "px";
   }
@@ -79,7 +117,6 @@ document.getElementById("addFigureBtn").onclick = function() {
   let width = parseInt(document.getElementById("figureWidth").value) || 50;
   let height = parseInt(document.getElementById("figureHeight").value) || 50;
   let color = document.getElementById("figureColor").value || "#000000";
-  // Standardposition.
   let fig = {
     id: "",
     name: name,
@@ -104,7 +141,11 @@ document.getElementById("uploadMapBtn").onclick = function() {
   formData.append("map", file);
   fetch("/upload", { method: "POST", body: formData })
     .then(response => response.text())
-    .then(data => console.log(data))
+    .then(data => {
+      console.log(data);
+      // Nach Upload aktualisieren wir die Map-Liste.
+      loadMaps();
+    })
     .catch(err => console.error(err));
 };
 
