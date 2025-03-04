@@ -6,7 +6,7 @@ let currentZoom = 1;
 let panX = 0;
 let panY = 0;
 
-// Funktion, die den aktuellen Transform (Zoom + Pan) auf die Map anwendet.
+// Kombinierter Transform: Zoom + Pan.
 function updateTransform() {
   mapDiv.style.transform = "translate(" + panX + "px, " + panY + "px) scale(" + currentZoom + ")";
 }
@@ -28,7 +28,7 @@ function loadMaps() {
     .catch(err => console.error(err));
 }
 
-// Initiale Laden der Map-Liste.
+// Initiales Laden der Map-Liste.
 loadMaps();
 
 // Zoom-Slider
@@ -46,9 +46,8 @@ document.getElementById("selectMapBtn").onclick = function() {
   ws.send(JSON.stringify(msg));
 };
 
-// Panning der Map (nur aktiv, wenn auf den Hintergrund geklickt wird)
+// Panning der Map (nur, wenn auf den leeren Bereich geklickt wird)
 mapDiv.addEventListener("mousedown", function(e) {
-  // Falls nicht direkt auf die Map (also z.B. auf eine Figur) geklickt wurde, beenden.
   if (e.target !== mapDiv) return;
   let startX = e.clientX;
   let startY = e.clientY;
@@ -59,7 +58,7 @@ mapDiv.addEventListener("mousedown", function(e) {
     panY = origPanY + (e.clientY - startY);
     updateTransform();
   }
-  function onMouseUp(e) {
+  function onMouseUp() {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   }
@@ -71,7 +70,6 @@ mapDiv.addEventListener("mousedown", function(e) {
 ws.onmessage = function(event) {
   let msg = JSON.parse(event.data);
   if (msg.type === "state_update") {
-    // Map aktualisieren.
     mapDiv.style.backgroundImage = `url(${msg.currentMap})`;
     // Figuren aktualisieren.
     mapDiv.querySelectorAll(".figure").forEach(el => el.remove());
@@ -94,7 +92,7 @@ function addFigureToMap(fig) {
   div.style.borderColor = fig.color;
   div.innerHTML = fig.name;
   div.setAttribute("data-id", fig.id);
-  // Damit beim Klicken auf eine Figur nicht gleichzeitig das Panning der Map startet:
+  // Damit beim Klicken auf eine Figur nicht gleichzeitig das Panning startet:
   div.addEventListener("mousedown", function(e) {
     e.stopPropagation();
     startDrag(e);
@@ -110,14 +108,12 @@ function addFigureToMap(fig) {
 function startDrag(e) {
   let el = e.target;
   let mapRect = mapDiv.getBoundingClientRect();
-  // Ermittle den "logischen" Startwert der Mausposition in Container-Koordinaten:
   let pointerLogicalX = (e.clientX - mapRect.left - panX) / currentZoom;
   let pointerLogicalY = (e.clientY - mapRect.top - panY) / currentZoom;
   let origLeft = parseFloat(el.style.left);
   let origTop = parseFloat(el.style.top);
   let offsetX = pointerLogicalX - origLeft;
   let offsetY = pointerLogicalY - origTop;
-
   function onMouseMove(e) {
     let pointerLogicalX = (e.clientX - mapRect.left - panX) / currentZoom;
     let pointerLogicalY = (e.clientY - mapRect.top - panY) / currentZoom;
@@ -126,7 +122,7 @@ function startDrag(e) {
     el.style.left = newLeft + "px";
     el.style.top = newTop + "px";
   }
-  function onMouseUp(e) {
+  function onMouseUp() {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
     let id = el.getAttribute("data-id");
@@ -141,14 +137,11 @@ function startDrag(e) {
 }
 
 function removeFigure(id) {
-  let msg = {
-    type: "remove_figure",
-    data: { id: id }
-  };
+  let msg = { type: "remove_figure", data: { id: id } };
   ws.send(JSON.stringify(msg));
 }
 
-// Beim Hinzufügen einer Figur auch Farbe und Lives mitgeben.
+// Figur hinzufügen (mit Farbe, Lives etc.).
 document.getElementById("addFigureBtn").onclick = function() {
   let name = document.getElementById("figureName").value || "Figure";
   let width = parseInt(document.getElementById("figureWidth").value) || 50;
@@ -180,13 +173,12 @@ document.getElementById("uploadMapBtn").onclick = function() {
     .then(response => response.text())
     .then(data => {
       console.log(data);
-      // Nach Upload aktualisieren wir die Map-Liste.
       loadMaps();
     })
     .catch(err => console.error(err));
 };
 
-// Aktualisiert die Profil-Ansicht basierend auf den Figuren.
+// Aktualisiert die Profil-Ansicht.
 function updateProfileView() {
   let profileList = document.getElementById("profileList");
   profileList.innerHTML = "";
@@ -194,11 +186,9 @@ function updateProfileView() {
     let container = document.createElement("div");
     container.className = "profile";
     container.style.borderColor = fig.color;
-    // Name anzeigen.
     let nameEl = document.createElement("div");
     nameEl.textContent = fig.name;
     container.appendChild(nameEl);
-    // Lives als Input-Feld.
     let livesInput = document.createElement("input");
     livesInput.type = "number";
     livesInput.value = fig.lives;
@@ -213,3 +203,14 @@ function updateProfileView() {
     profileList.appendChild(container);
   });
 }
+
+// --- Steuerung des Settings-Menüs ---
+
+// Zahnrad-Button öffnet das Menü.
+document.getElementById("gearButton").addEventListener("click", function() {
+  document.getElementById("settingsMenu").style.display = "block";
+});
+// Schließen-Button versteckt das Menü.
+document.getElementById("closeSettingsBtn").addEventListener("click", function() {
+  document.getElementById("settingsMenu").style.display = "none";
+});
