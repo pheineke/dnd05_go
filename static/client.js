@@ -6,7 +6,7 @@ let currentZoom = 1;
 let panX = 0;
 let panY = 0;
 
-// Kombinierter Transform: Zoom + Pan.
+// Kombinierter Transform: Pan + Zoom
 function updateTransform() {
   mapDiv.style.transform = "translate(" + panX + "px, " + panY + "px) scale(" + currentZoom + ")";
 }
@@ -31,10 +31,20 @@ function loadMaps() {
 // Initiales Laden der Map-Liste.
 loadMaps();
 
-// Zoom-Slider
-let zoomSlider = document.getElementById("zoomSlider");
-zoomSlider.addEventListener("input", function() {
-  currentZoom = parseFloat(zoomSlider.value);
+// Zoom per Mausrad: Anstatt eines Zoom-Reglers
+mapDiv.addEventListener("wheel", function(e) {
+  e.preventDefault();
+  const zoomStep = 0.025;
+  if (e.deltaY < 0) {
+    // Hineinzoomen
+    currentZoom += zoomStep;
+  } else {
+    // Herauszoomen
+    currentZoom -= zoomStep;
+  }
+  // Zoom-Faktor begrenzen
+  if (currentZoom < 1) currentZoom = 1;
+  if (currentZoom > 3) currentZoom = 3;
   updateTransform();
 });
 
