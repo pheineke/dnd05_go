@@ -154,8 +154,8 @@ function removeFigure(id) {
 // Figur hinzufügen (mit Farbe, Lives etc.).
 document.getElementById("addFigureBtn").onclick = function() {
   let name = document.getElementById("figureName").value || "Figure";
-  let width = parseInt(document.getElementById("figureWidth").value) || 50;
-  let height = parseInt(document.getElementById("figureHeight").value) || 50;
+  let width = parseInt(document.getElementById("figureWidth").value) || 10;
+  let height = parseInt(document.getElementById("figureHeight").value) || 10;
   let color = document.getElementById("figureColor").value || "#000000";
   let fig = {
     id: "",
