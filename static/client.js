@@ -35,6 +35,7 @@ loadMaps();
 mapDiv.addEventListener("wheel", function(e) {
   e.preventDefault();
   const zoomStep = 0.025;
+  const oldZoom = currentZoom;
   if (e.deltaY < 0) {
     // Hineinzoomen
     currentZoom += zoomStep;
@@ -45,6 +46,15 @@ mapDiv.addEventListener("wheel", function(e) {
   // Zoom-Faktor begrenzen
   if (currentZoom < 1) currentZoom = 1;
   if (currentZoom > 3) currentZoom = 3;
+
+  // Adjust panX and panY to zoom in where the mouse is
+  const rect = mapDiv.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const zoomRatio = currentZoom / oldZoom;
+  panX = mouseX - (mouseX - panX) * zoomRatio;
+  panY = mouseY - (mouseY - panY) * zoomRatio;
+
   updateTransform();
 });
 
@@ -196,9 +206,26 @@ function updateProfileView() {
     let container = document.createElement("div");
     container.className = "profile";
     container.style.borderColor = fig.color;
+    
     let nameEl = document.createElement("div");
     nameEl.textContent = fig.name;
+    // Clicking the name scales up the corresponding figure div.
+    nameEl.style.cursor = "pointer";
+    nameEl.addEventListener("click", function() {
+      let figureEl = document.querySelector(`.figure[data-id="${fig.id}"]`);
+      if (figureEl) {
+        // Set the scale transition and apply scale.
+        figureEl.style.transition = "transform 0.3s";
+        figureEl.style.transform = "scale(1.5)";
+        // Revert after 1 second.
+        setTimeout(() => {
+          figureEl.style.transform = "";
+        }, 1000);
+      }
+    });
+    
     container.appendChild(nameEl);
+    
     let livesInput = document.createElement("input");
     livesInput.type = "number";
     livesInput.value = fig.lives;
@@ -213,6 +240,7 @@ function updateProfileView() {
     profileList.appendChild(container);
   });
 }
+
 
 // --- Steuerung des Settings-Menüs ---
 
