@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -292,7 +293,7 @@ func uploadMapHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	os.MkdirAll("uploads", os.ModePerm)
-	dst, err := os.Create("./uploads/" + handler.Filename)
+	dst, err := os.Create("./uploads/" + strings.ReplaceAll(handler.Filename, " ", "_"))
 	if err != nil {
 		http.Error(w, "Error saving file", http.StatusInternalServerError)
 		return
