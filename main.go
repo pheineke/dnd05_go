@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -346,6 +347,22 @@ func main() {
 	})
 
 	log.Println("Server started on :8080")
+
+	go func() {
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			log.Println("Error retrieving IP addresses:", err)
+			return
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ip := ipnet.IP.To4(); ip != nil {
+					log.Printf("Open http://%s:8080/ in Browser (or for same machine 'localhost:8080')", ip.String())
+				}
+			}
+		}
+	}()
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
