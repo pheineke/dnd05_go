@@ -30,30 +30,40 @@ function loadMaps() {
 
 // Initiales Laden der Map-Liste.
 loadMaps();
-
 // Zoom per Mausrad: Anstatt eines Zoom-Reglers
 mapDiv.addEventListener("wheel", function(e) {
   e.preventDefault();
   const zoomStep = 0.025;
-  const oldZoom = currentZoom;
+
+  const rect = mapDiv.getBoundingClientRect();
+  // Bestimme den Zoom-Mittelpunkt: Cursor oder Mitte des DIV
+  const targetX = (typeof e.clientX === 'number') ? e.clientX - rect.left : rect.width / 2;
+  const targetY = (typeof e.clientY === 'number') ? e.clientY - rect.top : rect.height / 2;
+  
+  // Berechne die logischen Koordinaten (vor der Zoom-Änderung) an dieser Position 
+  const logicalX = (targetX - panX) / currentZoom;
+  const logicalY = (targetY - panY) / currentZoom;
+
+  // Passe den Zoomfaktor an
   if (e.deltaY < 0) {
-    // Hineinzoomen
     currentZoom += zoomStep;
   } else {
-    // Herauszoomen
     currentZoom -= zoomStep;
   }
+  
   // Zoom-Faktor begrenzen
   if (currentZoom < 1) currentZoom = 1;
   if (currentZoom > 3) currentZoom = 3;
 
-  // Adjust panX and panY to zoom in where the mouse is
-  const rect = mapDiv.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-  const zoomRatio = currentZoom / oldZoom;
-  panX = mouseX - (mouseX - panX) * zoomRatio;
-  panY = mouseY - (mouseY - panY) * zoomRatio;
+  // Berechne die neuen Verschiebungswerte, damit der ausgewählte Punkt unverändert bleibt
+  panX = targetX - logicalX * currentZoom;
+  panY = targetY - logicalY * currentZoom;
+
+  // Optional: Anzeige des aktuellen Zoom-Werts
+  const zoomIndicator = document.getElementById('zoomIndicator');
+  if (zoomIndicator) {
+    zoomIndicator.textContent = "Zoom: " + currentZoom.toFixed(2);
+  }
 
   updateTransform();
 });
@@ -98,6 +108,15 @@ ws.onmessage = function(event) {
       addFigureToMap(fig);
       figures[fig.id] = fig;
     });
+
+    Object.keys(visibilityMap).forEach(id => {
+      let figureEl = document.querySelector(`.figure[data-id="${id}"]`);
+      if (figureEl) {
+        let nameSpan = figureEl.querySelector('span');
+        nameSpan.style.visibility = visibilityMap[id] ? 'visible' : 'hidden';
+      }
+    });
+
     updateProfileView();
   }
 };
@@ -110,13 +129,22 @@ function addFigureToMap(fig) {
   div.style.left = fig.x + "px";
   div.style.top = fig.y + "px";
   div.style.borderColor = fig.color;
-  div.innerHTML = fig.name;
+  
+
+  let span = document.createElement("span");
+  span.textContent = fig.name;
+  div.appendChild(span);
+
+
   div.setAttribute("data-id", fig.id);
   // Damit beim Klicken auf eine Figur nicht gleichzeitig das Panning startet:
-  div.addEventListener("mousedown", function(e) {
-    e.stopPropagation();
-    startDrag(e);
+  [div, span].forEach(element => {
+    element.addEventListener("mousedown", function(e) {
+      e.stopPropagation();
+      startDrag(e, div); // Always pass the figure div
+    });
   });
+  
   // Rechtsklick zum Entfernen.
   div.oncontextmenu = function(e) {
     e.preventDefault();
@@ -125,8 +153,8 @@ function addFigureToMap(fig) {
   mapDiv.appendChild(div);
 }
 
-function startDrag(e) {
-  let el = e.target;
+function startDrag(e, el) {
+  // let el = e.target;
   let mapRect = mapDiv.getBoundingClientRect();
   let pointerLogicalX = (e.clientX - mapRect.left - panX) / currentZoom;
   let pointerLogicalY = (e.clientY - mapRect.top - panY) / currentZoom;
@@ -198,6 +226,8 @@ document.getElementById("uploadMapBtn").onclick = function() {
     .catch(err => console.error(err));
 };
 
+let visibilityMap = {};  // Stores visibility settings for each figure
+
 // Aktualisiert die Profil-Ansicht.
 function updateProfileView() {
   let profileList = document.getElementById("profileList");
@@ -223,8 +253,33 @@ function updateProfileView() {
         }, 1000);
       }
     });
-    
     container.appendChild(nameEl);
+
+    let options_div = document.createElement('div');
+    options_div.classList.add('options_div')
+    
+    let nameVisible = document.createElement("input");
+    nameVisible.type = "checkbox";
+    nameVisible.title = "Change visibility of figure name"
+    nameVisible.checked = visibilityMap[fig.id] !== false;
+
+    nameVisible.addEventListener('change', function() {
+      visibilityMap[fig.id] = nameVisible.checked;
+      let figureEl = document.querySelector(`.figure[data-id="${fig.id}"]`);
+      if (figureEl) {
+        let nameSpan = figureEl.querySelector('span');
+        if (nameVisible.checked) {
+          nameSpan.style.visibility = 'visible';
+        } else {
+          nameSpan.style.visibility = 'hidden';
+        }
+      }
+    });
+
+
+    options_div.appendChild(nameVisible);
+    
+
     
     let livesInput = document.createElement("input");
     livesInput.type = "number";
@@ -236,7 +291,10 @@ function updateProfileView() {
       };
       ws.send(JSON.stringify(msg));
     });
-    container.appendChild(livesInput);
+    options_div.appendChild(livesInput);
+
+
+    container.appendChild(options_div);
     profileList.appendChild(container);
   });
 }
@@ -251,4 +309,156 @@ document.getElementById("gearButton").addEventListener("click", function() {
 // Schließen-Button versteckt das Menü.
 document.getElementById("closeSettingsBtn").addEventListener("click", function() {
   document.getElementById("settingsMenu").style.display = "none";
+});
+
+
+//*
+// 
+// Font selection for site.
+// 
+//  */
+
+// Add font selection option in the settings menu modal.
+const settingsMenu = document.getElementById("settingsMenu");
+const fontOptionDiv = document.createElement("div");
+fontOptionDiv.style.marginTop = "10px";
+
+// Create label for the font selection.
+const fontLabel = document.createElement("label");
+fontLabel.htmlFor = "fontSelect";
+fontLabel.textContent = "Choose Font: ";
+fontOptionDiv.appendChild(fontLabel);
+
+// Create select element for fonts.
+const fontSelect = document.createElement("select");
+fontSelect.id = "fontSelect";
+
+// Define font options.
+["Arial", "Times New Roman", "Courier New", "Verdana"].forEach(font => {
+  const option = document.createElement("option");
+  option.value = font;
+  option.textContent = font;
+  // Set default to Arial.
+  if (font === "Arial") option.selected = true;
+  fontSelect.appendChild(option);
+});
+fontOptionDiv.appendChild(fontSelect);
+
+// Append the font option to the settings menu.
+settingsMenu.appendChild(fontOptionDiv);
+
+// Change the font of the map div when a new font is selected.
+fontSelect.addEventListener("change", function(e) {
+  const newFont = e.target.value;
+  document.body.style.fontFamily = newFont;
+});
+
+// Create language selection option in settings menu modal
+const languageOptionDiv = document.createElement("div");
+languageOptionDiv.style.marginTop = "10px";
+
+const languageLabel = document.createElement("label");
+languageLabel.htmlFor = "languageSelect";
+// Add a data attribute so it can be translated.
+languageLabel.setAttribute("data-translate-key", "Select Language:");
+languageLabel.textContent = "Select Language: ";
+languageOptionDiv.appendChild(languageLabel);
+
+const languageSelect = document.createElement("select");
+languageSelect.id = "languageSelect";
+
+// Define language options.
+const languages = [
+  { value: "en", text: "English" },
+  { value: "de", text: "Deutsch" }
+];
+
+languages.forEach(lang => {
+  const option = document.createElement("option");
+  option.value = lang.value;
+  option.textContent = lang.text;
+  languageSelect.appendChild(option);
+});
+languageOptionDiv.appendChild(languageSelect);
+
+// Append the language option to the settings menu.
+settingsMenu.appendChild(languageOptionDiv);
+
+// Translation dictionary for various text keys.
+const translations = {
+  en: {
+    "Zoom:": "Zoom:",
+    "Schriftart wählen:": "Choose Font:",
+    "Figur": "Figure",
+    "profile": "profiles",
+    "Sprache wählen:": "Select Language:",
+    "Einstellungen": "Settings",
+    "Zum Zoomen mit dem Mausrad": "For map zoom scroll",
+    "Karte hochladen": "Upload Map",
+    "Karte wählen": "Choose Map",
+    "Figur Name": "Figure Name",
+    "Breite": "Width",
+    "Höhe": "Height",
+    "Figur hinzufügen": "Add figure",
+    "Schließen": "Close"
+  },
+  de: {
+    "Zoom:": "Zoom:",
+    "Choose Font:": "Schriftart wählen:",
+    "Figure": "Figur",
+    "profiles": "profile",
+    "Select Language:": "Sprache wählen:",
+    "Settings": "Einstellungen",
+    "For map zoom scroll": "Zum Zoomen mit dem Mausrad",
+    "Upload Map": "Karte hochladen",
+    "Choose Map": "Karte wählen",
+    "Figure Name": "Figur Name",
+    "Width": "Breite",
+    "Height": "Höhe",
+    "Add figure": "Figur hinzufügen",
+    "Close": "Schließen"
+  }
+};
+
+// Function to traverse and translate all text nodes of a given node.
+function traverseAndTranslate(node, selectedLanguage) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    let text = node.textContent;
+    Object.keys(translations[selectedLanguage]).forEach(key => {
+      // Use regex with word boundaries for accurate replacement.
+      const regex = new RegExp("\\b" + key + "\\b", "g");
+      text = text.replace(regex, translations[selectedLanguage][key]);
+    });
+    node.textContent = text;
+  } else {
+    node.childNodes.forEach(child => traverseAndTranslate(child, selectedLanguage));
+  }
+}
+
+// Updated function to update translations for the whole document.
+function updateTranslations(selectedLanguage) {
+  // Update elements explicitly marked with a translate key.
+  document.querySelectorAll("[data-translate-key]").forEach(el => {
+    const key = el.getAttribute("data-translate-key");
+    if (translations[selectedLanguage] && translations[selectedLanguage][key]) {
+      el.textContent = translations[selectedLanguage][key];
+    }
+  });
+  
+  // Traverse the entire document (not just the modal).
+  traverseAndTranslate(document.documentElement, selectedLanguage);
+  
+  // Example: Update dynamic elements, such as the zoom indicator.
+  const zoomIndicator = document.getElementById("zoomIndicator");
+  if (zoomIndicator) {
+    const zoomValue = parseFloat(currentZoom).toFixed(2);
+    zoomIndicator.setAttribute("data-translate-key", "Zoom:");
+    zoomIndicator.textContent = translations[selectedLanguage]["Zoom:"] + " " + zoomValue;
+  }
+}
+
+// Translate everything on change.
+languageSelect.addEventListener("change", function(e) {
+  const selectedLanguage = e.target.value;
+  updateTranslations(selectedLanguage);
 });

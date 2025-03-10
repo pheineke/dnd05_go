@@ -24,6 +24,14 @@
       cursor: move;
       user-select: none;
     }
+
+    .figure > span {
+      margin: 5px;
+      background-color: white;
+      display: inline;
+    }
+
+
     /* Verstecktes Settings-Menü (Overlay) */
     #settingsMenu {
       position: fixed;
@@ -47,17 +55,33 @@
       height: 100vh;
       background: #f9f9f9;
       overflow-y: auto;
+      word-break: break-all;
       border-left: 1px solid #ccc;
       padding: 10px;
       box-sizing: border-box;
     }
     .profile {
       border: 2px solid;
+      display: flex;
+      gap: 5px;
+      flex-direction: column;
+      align-items: left;
+      justify-content: space-between;
       padding: 5px;
       margin-bottom: 10px;
       border-radius: 4px;
     }
-    .profile input { width: 30%; }
+
+    .options_div {
+      display: flex;
+      gap: 5px;
+    }
+
+    .profile > .options_div > input[type="number"] {
+      width: 30%;
+      height: 60%;
+    }
+
     /* Zahnrad-Button am unteren Rand der Profil-Ansicht */
     #gearButton {
       position: absolute;
@@ -73,35 +97,36 @@
 <body>
   <div id="map"></div>
   <div id="profileView">
-    <h3>Figuren Profile</h3>
+    <h3>Figure profiles</h3>
     <div id="profileList"></div>
     <!-- Zahnrad-Button -->
     <button id="gearButton">&#9881;</button>
   </div>
   <!-- Verstecktes Einstellungsmenü -->
   <div id="settingsMenu">
-    <h3>Einstellungen</h3>
+    <h3>Settings</h3>
     <div>
       <input type="file" id="mapUpload">
-      <button id="uploadMapBtn">Map hochladen</button>
+      <button id="uploadMapBtn">Upload Map</button>
     </div>
     <div style="margin-top:10px;">
       <select id="mapSelect"></select>
-      <button id="selectMapBtn">Map auswählen</button>
+      <button id="selectMapBtn">Choose Map</button>
     </div>
     <div style="margin-top:10px;">
-      <input type="text" id="figureName" placeholder="Figur Name">
-      <input type="number" id="figureWidth" placeholder="Breite" style="width:70px;">
-      <input type="number" id="figureHeight" placeholder="Höhe" style="width:70px;">
+      <input type="text" id="figureName" placeholder="Figur Name" maxlength="50">
+      <input type="number" id="figureWidth" placeholder="Width" style="width:70px;">
+      <input type="number" id="figureHeight" placeholder="Height" style="width:70px;">
       <input type="color" id="figureColor" value="#ff0000">
-      <button id="addFigureBtn">Figur hinzufügen</button>
+      <button id="addFigureBtn">Add figure</button>
     </div>
+    
     <div style="margin-top:10px; text-align: right;">
-      <button id="closeSettingsBtn">Schließen</button>
+      <button id="closeSettingsBtn">Close</button>
     </div>
     <div style="margin-top:10px;">
       <!-- Hinweis: Zum Zoomen auf der Karte scrollen -->
-      <small>Zum Zoomen einfach mit dem Mausrad scrollen.</small>
+      <small>For map zoom scroll.</small>
     </div>
   </div>
   <script src="/static/client.js"></script>
